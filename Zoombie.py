@@ -1,6 +1,7 @@
 import bge # type: ignore
 import mathutils # type: ignore
 import math
+import Utils
 import random
 import Game
 from Attribute import Attribute
@@ -21,7 +22,7 @@ class Zoombie:
         self._hpAtr = Attribute(50, 50)
         self._rotTrigger = Trigger(0, random.randint(180, 240))
         self._movTrigger = Trigger(0, random.randint(100, 140))
-        self._atkTrigger = Trigger(0, 156)
+        self._atkTrigger = Trigger(0, 80)
         self._endObjTrigger = Trigger(-1, 300)
         self._damage = 10
         self._hpBar = None
@@ -52,12 +53,18 @@ class Zoombie:
         return self._hpAtr.getMax()
 
     def damage(self, value):
+        beforeLife = self.getHp()
         self._hpAtr.decrease(value)
         self._hpBar.localScale = [self.getHp() / self.getMaxHp(), 1, 1]
+        blood = Game.addObject('Blood', self._bloodZoombie, 300)
+        scale = ((beforeLife - self.getHp()) / self.getMaxHp())
+        blood.localScale = [scale, scale, scale]
         if self._hpAtr.getValue() <= 0:
             #if random.randint(1,2) == 1:
             #    Game.instance().addDrop(self._dropZoombie)
-            #self._kxObj.endObject()
+            self._kxObj['Shootable'] = False
+            self._kxObj.suspendDynamics(True)
+            Game.print("Morreu")
             self._mode = DEAD
     
     def updateTriggers(self):
@@ -78,27 +85,23 @@ class Zoombie:
     def getMode(self):
         return self._mode
     
-    def shooted(self, weapon, originBullet):
+    def shooted(self, originBullet, weapon):
         if not(self._mode == DEAD):
             damage = weapon.getDamage()
             damage += random.randint(int(-damage / 2), int(damage / 2))
             if random.randint(1, 100) <= weapon.getCritical():
                     damage *= 3
-            x = self._kxObj.worldPosition.x - originBullet.worldPosition.x
-            y = self._kxObj.worldPosition.y - originBullet.worldPosition.y
-            angle = math.atan(x / y)
-            if y > 0:
-                angle += math.pi
-            self._kxObj.applyForce([-math.sin(angle) * weapon.getForce(), -math.cos(angle) * weapon.getForce(), 0], False)
+            Utils.forceOff(originBullet, self.getKxObject(), weapon.getForce())
+            self.setFollow()
             self.damage(damage)
-            blood = Game.addObject('Blood', self._bloodZoombie, 300)
-            scale = (damage / self.getMaxHp())
-            blood.localScale = [scale, scale, scale]
+
+    def setIdle(self):
+        self._mode = IDLE
 
     def idle(self):
         if (self._movTrigger.getValue() == 0):
             if random.randint(0, 3) == 2:
-                self._mode = WALK
+                self.setWalk()
 
     def move(self, vector = mathutils.Vector((0.0, 1.0, 0.0))):
         frame = self._armatureZoombie.getActionFrame(0)
@@ -107,7 +110,9 @@ class Zoombie:
             self._kxObj.applyMovement(vector.normalized() * self._velocity, True)
         else:
            self._kxObj.applyMovement(vector.normalized() * self._velocity / 2, True)
-        
+    
+    def setWalk(self):
+        self._mode = WALK
 
     def walk(self, sensorCollision = False): #OUTRO
         if (self._rotTrigger.getValue() == 0):
@@ -115,7 +120,7 @@ class Zoombie:
 
         if (self._movTrigger.getValue() == 0):
             if random.randint(0, 3) == 2:
-                self._mode = IDLE
+                self.setIdle()
             
         if sensorCollision: #BUG
             self._kxObj.applyRotation([0, 0, math.pi / 2], True)
@@ -123,21 +128,29 @@ class Zoombie:
         self.move()
 
     def setFollow(self):
-        self._mode = FOLLOW
+        if self._kxObj.rayCastTo(Player.instance().getKxObject()) == Player.instance().getKxObject():
+            self._mode = FOLLOW
 
     def follow(self):
-        self.move()
+        if self._kxObj.rayCastTo(Player.instance().getKxObject()) == Player.instance().getKxObject():
+            self.move()
+        else:
+            self.setIdle()
 
     def setAtk(self):
-        self._mode = ATK
+        if self._kxObj.rayCastTo(Player.instance().getKxObject()) == Player.instance().getKxObject():
+            self._mode = ATK
 
     def atk(self):
-        if self._atkTrigger.getValue() == 0:
-            self._atkTrigger.updateTrigger()
-            
-        if self._atkTrigger.getValue() == 90:
-            player = Player.instance()
-            player.damage(self._damage)
+        if self._kxObj.rayCastTo(Player.instance().getKxObject()) == Player.instance().getKxObject():
+            if self._atkTrigger.getValue() == 0:
+                self._atkTrigger.updateTrigger()
+
+            if self._atkTrigger.getValue() == 46:
+                player = Player.instance()
+                player.damage(self._damage)
+        else:
+            self.setIdle()
         
 def start(controller):
     zoombie = Zoombie()
@@ -152,24 +165,21 @@ def update(controller):
         zoombie.updateTriggers()
         zoombieObj = zoombie.getKxObject()
         zoombieObj['mode'] = zoombie.getMode()
-        #controller.deactivate(zoombieObj.actuators['Track'])
-
-    if zoombie.getMode() == IDLE:
-        zoombie.idle()
-    elif zoombie.getMode() == WALK:
-        zoombie.walk(zoombieObj.sensors['RadarCollision'].positive)
-    elif zoombie.getMode() == FOLLOW:
-        zoombie.follow()
-    elif zoombie.getMode() == DEAD:
         controller.deactivate(zoombieObj.actuators['Track'])
-    elif zoombie.getMode() == ATK:
-        zoombie.atk()
 
     if zoombie.getMode() != DEAD:
+        if zoombie.getMode() == IDLE:
+            zoombie.idle()
+        elif zoombie.getMode() == WALK:
+            zoombie.walk(zoombieObj.sensors['RadarCollision'].positive)
+        elif zoombie.getMode() == FOLLOW:
+            controller.activate(zoombieObj.actuators['Track'])
+            zoombie.follow()
+        elif zoombie.getMode() == ATK:
+            zoombie.atk()
+
         if (zoombieObj.sensors['RadarPlayer'].positive or zoombieObj.sensors['NearPlayer'].positive):
-            if zoombieObj.rayCastTo(Player.instance().getKxObject(), 10) == Player.instance().getKxObject():
-                controller.activate(zoombieObj.actuators['Track'])
-                zoombie.setFollow() # Arruma (Seguindo infinitamente)
+            zoombie.setFollow()
 
         if zoombieObj.sensors['AtkPlayer'].positive:
             zoombie.setAtk()

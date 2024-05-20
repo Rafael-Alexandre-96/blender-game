@@ -3,12 +3,54 @@ from Player import Player
 from WeaponManager import WeaponManager
 from Mouse import Mouse
 
-def updateCursor(controller):
-    mouse = Mouse.instance()
-    x = mouse.getX() * 15.8
-    y = -mouse.getY() * 15.8
-    mult = 0.7
-    controller.owner.worldPosition = [x / mult, y + mult, 0]
+class Cursor:
+    _instance = None
+
+    def __init__(self):
+        self._kxObj = None
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def getKxObject(self):
+        return self._kxObj
+
+    def setKxObject(self, kxObject):
+        self._kxObj = kxObject
+
+    def setFireCursor(self):
+        if not(self._kxObj is None):
+            self._kxObj.replaceMesh('Cursor_Fire')
+
+    def setAimCursor(self):
+        if not(self._kxObj is None):
+            self._kxObj.replaceMesh('Cursor')
+
+    def updatePosition(self):
+        mouse = Mouse.instance()
+        x = mouse.getX() * 15.8
+        y = -mouse.getY() * 15.8
+        self._kxObj.worldPosition = [x, y, 0]
+
+def startCursor(controller):
+    cursor = Cursor.instance()
+    cursor.setKxObject(controller.owner)
+
+def updateCursor():
+    cursor = Cursor.instance()
+    cursor.updatePosition()
+    cursor.setAimCursor()
+    try:
+        if not(Mouse.instance().getKxOver() is None):
+            if Mouse.instance().getKxOver() == Player.instance().getKxObject().rayCastTo(Mouse.instance().getKxOver(), 0):
+                if 'Shootable' in Mouse.instance().getKxOver():
+                    if Mouse.instance().getKxOver()['Shootable']:
+                        cursor.setFireCursor()
+    except:
+        Mouse.instance().removeKxOver()
     
 def updateHpText(controller):
     player = Player.instance()

@@ -6,7 +6,6 @@ class Game:
 
     def __init__(self):
         self._kxObj = None
-        self._cursorObj = None
         self._zoombies = []
         
     def getKxObject(self):
@@ -15,17 +14,6 @@ class Game:
     def setKxObject(self, kxObject):
         self._kxObj = kxObject
 
-    def setCursorObj(self, kxObject):
-        self._cursorObj = kxObject
-
-    def setFireCursor(self):
-        if not(self._cursorObj is None):
-            self._cursorObj.replaceMesh('Cursor_Fire')
-
-    def setAimCursor(self):
-        if not(self._cursorObj is None):
-            self._cursorObj.replaceMesh('Cursor')
-
     @classmethod
     def instance(cls):
         if cls._instance is None:
@@ -33,7 +21,8 @@ class Game:
         return cls._instance
     
     def print(self, value):
-        Game.instance().getKxObject()['print'] = str(value)
+        if not(Game.instance().getKxObject() is None):
+            Game.instance().getKxObject()['print'] = str(value)
 
 ###LIFECICLE
 def start(controller):
@@ -46,17 +35,10 @@ def update():
 def gameOver():
     bge.logic.endGame()
 
-###HUD
-def startCursor(controller):
-    Game.instance().setCursorObj(controller.owner)
-
-def setFireCursor():
-    Game.instance().setFireCursor()
-    
-def setAimCursor():
-    Game.instance().setAimCursor()
-
 ###UTILS
+def getScene():
+    return bge.logic.getCurrentScene()
+
 def addObject(kxObject, location, time = 0):
     scene = bge.logic.getCurrentScene()
     return scene.addObject(kxObject, location, time)
@@ -66,7 +48,7 @@ def print(value):
 
 ###LIMIT ENTITIES
 def addZoombie(location):
-    if len(Game.instance()._zoombies) < 2:
+    if len(Game.instance()._zoombies) < 30:
         zoombieObj = addObject('Zoombie_Obj', location)
         Game.instance()._zoombies.append(zoombieObj)
 

@@ -1,7 +1,8 @@
 import bge  # type: ignore
-from inspect import ismethod
-import Game
+import Player
 from Weapon import Weapon
+from Mouse import Mouse
+import Game
 
 PISTOL_INDEX = 0
 SUB_INDEX = 1
@@ -17,7 +18,6 @@ class WeaponManager:
         self._kxObj = None
         self._weapons = []
         self._selectedWeapon = None
-        self._aimed = None
         self.createWeapons()
         
     def createWeapons(self):
@@ -62,42 +62,28 @@ class WeaponManager:
     def getBullets(self, index = 0):
         return self._weapons[index].getBullets()
     
-    def setAimed(self, kxObject):
-        self._aimed = kxObject
-
-    def getAimed(self):
-        return self._aimed
-    
 def start(controller):
     wm = WeaponManager.instance()
     wm.setKxObject(controller.owner)
     
 def update():
     wm = WeaponManager.instance()
-    wm.updateTriggers()    
-    wmObj = wm.getKxObject()
-    obj = wmObj.rayCastTo('Weapon_Ray', 20)
-    Game.setAimCursor()
-    wm.setAimed(None)
-    if not(obj is None):
-        if 'Shootable' in obj:
-            Game.setFireCursor()
-            wm.setAimed(obj)
-            
+    wm.updateTriggers()
 
 def shoot(controller):
-    wm = WeaponManager.instance()
-    weapon = wm.getSelectedWeapon()
-    wmObj = wm.getKxObject()
-    if weapon.shoot():
-        lampObj = 'Shoot_Lamp'
-        if (weapon.getName() == 'Plasma'):
-            lampObj = 'Plasma_Shoot_Lamp'
-        bge.logic.getCurrentScene().addObject(lampObj, wm.getKxObject(), 5)
-        bge.logic.getCurrentScene().addObject(wm.getSelectedWeapon().getName() + '_Shoot_Sound', wm.getKxObject())
-        obj = wm.getAimed()
-        if not(obj is None):
-            obj['instance'].shooted(weapon, controller.owner)
+    if Player.Player.instance().getMode() != 'Run':
+        wm = WeaponManager.instance()
+        weapon = wm.getSelectedWeapon()
+        if weapon.shoot():
+            lampObj = 'Shoot_Lamp'
+            if (weapon.getName() == 'Plasma'):
+                lampObj = 'Plasma_Shoot_Lamp'
+            bge.logic.getCurrentScene().addObject(lampObj, wm.getKxObject(), 5)
+            bge.logic.getCurrentScene().addObject(wm.getSelectedWeapon().getName() + '_Shoot_Sound', wm.getKxObject())
+            obj = Mouse.instance().getKxOver()
+            if not(obj is None):
+                if obj == Player.Player.instance().getKxObject().rayCastTo(obj, 0):
+                    obj['instance'].shooted(controller.owner, weapon)
         
 def changeWeapon(controller):
     wm = WeaponManager.instance()

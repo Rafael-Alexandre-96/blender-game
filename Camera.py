@@ -23,7 +23,7 @@ class Camera:
         if not(self._followed is None):
             self._kxObj.position.x = self._followed.position.x
             self._kxObj.position.y = self._followed.position.y - 13 - self._zoom
-            self._kxObj.position.z = self._followed.position.z + 13 + self._zoom
+            self._kxObj.position.z = self._followed.position.z + 14.5 + self._zoom - 0.915
 
     @classmethod
     def instance(cls):

@@ -1,22 +1,39 @@
 import bge # type: ignore
 import mathutils # type: ignore
-import random
 from Mouse import Mouse
 from Attribute import Attribute
 import Game
+
+INITIAL_VEL = 0.05
+IDLE = "Idle"
+WALK = "Walk"
+RUN = "Run"
 
 class Player:
 
     _instance = None
 
     def __init__(self):
-        self._velocity = 0.05
+        self._velocity = INITIAL_VEL
+        self._mode = IDLE
         self._kxObj = None
         self._hpAtr = Attribute(100, 100)
         self._kvAtr = Attribute(0, 100)
         self._goldAtr = Attribute(100, 999999)
         self._roofObj = None
-        
+
+    def getMode(self):
+        return self._mode
+    
+    def setIdle(self):
+        self._mode = IDLE
+
+    def setWalk(self):
+        self._mode = WALK
+
+    def setRun(self):
+        self._mode = RUN
+
     def getRoofObj(self):
         return self._roofObj
         
@@ -52,10 +69,10 @@ class Player:
             Game.gameOver()
             
     def getHp(self):
-        return self._hpAtr.getValue()
+        return int(self._hpAtr.getValue())
     
     def getMaxHp(self):
-        return self._hpAtr.getMax()
+        return int(self._hpAtr.getMax())
     
     def hpIsFulled(self):
         return self._hpAtr.isFulled()
@@ -82,29 +99,48 @@ class Player:
         return self._goldAtr.isFulled()
     
     def move(self, vector):
+        if self.getMode() == WALK:
+            self._velocity = INITIAL_VEL
+        elif self.getMode() == RUN:
+            self._velocity = INITIAL_VEL * 1.5
+
         self._kxObj.applyMovement(vector.normalized() * self._velocity, False)
+
+    def isRunning(self, running = True):
+        if running:
+            self.setRun()
+
+    def shooted(self, originBullet, damage = 0, critical = 0, force = 0):
+        pass
 
 def start(controller):
     player = Player.instance()
     player.setKxObject(controller.owner)
+    player.getKxObject()['instance'] = player
     
 def update():
-    pass
-
-def move():
     player = Player.instance()
     kxObj = player.getKxObject()
+    kxObj['mode'] = player.getMode()
+
     moveVector = mathutils.Vector((0.0, 0.0, 0.0))
+    player.setIdle()
     
     if kxObj.sensors['F'].positive:
+        player.setWalk()
         moveVector.y += 1
     elif kxObj.sensors['B'].positive:
+       player.setWalk()
        moveVector.y -= 1
            
     if kxObj.sensors['L'].positive:
+        player.setWalk()
         moveVector.x -= 1
     elif kxObj.sensors['R'].positive:
+        player.setWalk()
         moveVector.x = 1
+
+    player.isRunning(kxObj.sensors['Run'].positive)
     
     player.move(moveVector)
         
